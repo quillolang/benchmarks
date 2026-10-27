@@ -1,4 +1,5 @@
-// The same data and page as quillo.qwe's, for node.js and bun.js.
+// The same data and page as quillo.qwe's, for node.js and bun.js (and run.cjs,
+// which writes the list to fortunes.db for the /db answer).
 export const fortunes = [
   { id: 1, message: "fortune: No such file or directory" },
   { id: 2, message: "A computer scientist is someone who fixes things that aren't broken." },
@@ -14,8 +15,8 @@ export const fortunes = [
   { id: 12, message: "フレームワークのベンチマーク" },
 ];
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
-export function fortunesPage() {
-  const all = [...fortunes, { id: 0, message: "Additional fortune added at request time." }];
+export function fortunesPage(list = fortunes) {
+  const all = [...list, { id: 0, message: "Additional fortune added at request time." }];
   all.sort((a, b) => (a.message < b.message ? -1 : a.message > b.message ? 1 : 0));
   let rows = "";
   for (const f of all) rows += `<tr><td>${f.id}</td><td>${esc(f.message)}</td></tr>`;

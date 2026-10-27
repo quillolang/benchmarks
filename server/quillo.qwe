@@ -1,5 +1,5 @@
-// The server benchmark in Quillo: the same four answers as node.js and
-// bun.js. run.js starts each and loads it with load.rs.
+// The server benchmark in Quillo: the same answers as node.js, bun.js and
+// php/. run.cjs starts each and loads it with load.rs.
 
 route GET /text = "Hello, World!"
 route GET /json = { message: "Hello, World!" }
@@ -23,6 +23,19 @@ let fortunes = [
 
 route GET /fortunes {
     let all = fortunes + [{ id: 0, message: "Additional fortune added at request time." }] | sort_by((f) => f.message)
+    <html>
+        <head><title>Fortunes</title></head>
+        <body><table>
+            <tr><th>id</th><th>message</th></tr>
+            {for f in all => <tr><td>{f.id}</td><td>{f.message}</td></tr>}
+        </table></body>
+    </html>
+}
+
+// The same page, its fortunes read from SQLite (fortunes.db, which run.cjs writes).
+db.open("fortunes.db")
+route GET /db {
+    let all = db.query("select id, message from fortune") + [{ id: 0, message: "Additional fortune added at request time." }] | sort_by((f) => f.message)
     <html>
         <head><title>Fortunes</title></head>
         <body><table>

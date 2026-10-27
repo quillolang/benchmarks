@@ -2,7 +2,7 @@
 
 How fast [Quillo](https://github.com/quillolang/quillo) is, in two suites: the
 browser side (components updating the page) against plain JavaScript and other
-frameworks, and the server side (answering requests) against Node and Bun.
+frameworks, and the server side (answering requests) against Node, Bun and PHP.
 
 Both run a checkout of [quillolang/quillo](https://github.com/quillolang/quillo)
 beside this one (`../quillo`, or `QUILLO_DIR=/path/to/quillo`), built with
@@ -51,32 +51,38 @@ library, resuming the server's HTML, live updates), compressed.
 
 ## On the server: `server`
 
-The same four answers from Quillo (`quillo.qwe`), Node's `http` (`node.js`)
-and `Bun.serve` (`bun.js`): plain text, JSON, TechEmpower's Fortunes without a
-database (the list, one more added per request, sorted, as an escaped HTML
-table; computed on every request) and a loop of arithmetic in the language
-itself. `load.rs` (built with `rustc -O` on first use) keeps 64 connections
-busy from 4 threads on the same machine.
+The same five answers from Quillo (`quillo.qwe`), Node's `http` (`node.js`),
+`Bun.serve` (`bun.js`) and PHP (`php/`): plain text, JSON, TechEmpower's Fortunes
+without a database (the list, one more added per request, sorted, as an escaped
+HTML table; computed on every request), the same page with the list read from
+SQLite (`fortunes.db`, written by `run.cjs` at the start of each run), and a loop
+of arithmetic in the language itself. `load.rs` (built with `rustc -O` on first
+use) keeps 64 connections busy from 4 threads on the same machine.
+
+PHP runs two ways, both with OPcache and its JIT on and files never checked for
+changes: `fpm`, php-fpm behind nginx (static workers, a Unix socket between them),
+as most PHP is served; and `franken`, FrankenPHP in worker mode, where the program
+stays loaded between requests, as Quillo's does. Each keeps its SQLite connection
+open between requests.
 
 ```sh
 (cd ../quillo && cargo build --release)
-node server/run.cjs 8
+node server/run.cjs 8                                 # Quillo, Node and Bun
+node server/run.cjs 5 quillo,node,bun,fpm,franken     # and PHP: php-fpm, nginx and frankenphp on the PATH
 ```
 
-Requests a second (p99 latency in ms), one process each, same machine:
+`run.cjs` prints requests a second (and p99 latency) for each runtime and answer,
+on one process each and then on several (`--instances`, Node's cluster, Bun's
+`reusePort`, as many PHP workers); `BENCH_JSON=file` also writes every figure.
 
-| | Quillo | Node 24 | Bun 1.4 |
-|---|---:|---:|---:|
-| text | **262k** (0.3) | 157k (0.7) | 225k (0.5) |
-| JSON | **258k** (0.3) | 155k (0.7) | 227k (0.5) |
-| fortunes | **180k** (0.4) | 89k (1.3) | 169k (0.8) |
-| compute (10,000-step loop) | **26.4k** (2.5) | 24.4k (4.9) | 23.4k (5.1) |
+Figures are published here only when measured with a current Quillo build, named
+by its commit, all runtimes in one run on an otherwise idle machine. They will be
+added for the next one.
 
-Each keeps about one core busy. The compute loop is plain arithmetic, which Quillo
-compiles to machine code ([user guide](https://quillolang.org/docs/numbers/)): it is then as fast as the
-JavaScript JITs' (the rest of each request, HTTP and JSON, is faster in Quillo). With 6
-processes (`--instances 6`, Node's cluster), compute goes to 132k for Quillo and 103k
-for Node; macOS does not spread connections across Bun's `reusePort` sockets, so Bun
-stays at one process's figures. For the other answers, the load generator, on the
-same 4 performance cores as the servers, is what limits 6 processes: their figures
-there say more about the machine than about the servers.
+Reading them: with several processes, macOS does not spread connections across
+Bun's `reusePort` sockets, so Bun stays at one process's figures; and for text and
+JSON the load generator, on the same cores as the servers, is what limits several
+processes, so those figures say more about the machine than about the servers.
+Each PHP figure includes the server in front of PHP (nginx, or FrankenPHP's Go
+HTTP server), as it does in production. A benchmark measures one machine at one
+time: run it on yours, with nothing else busy, before quoting a figure.
